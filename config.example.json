@@ -1,0 +1,9 @@
+{
+  "_comment": "Copy this file to config.json (gitignored) and fill in your values.",
+
+  "device_id": "YOUR_TIDBYT_DEVICE_ID",
+  "api_token":  "YOUR_TIDBYT_API_TOKEN",
+
+  "_comment_installation_id": "A stable ID keeps this image in the rotation across updates.",
+  "installation_id": "claude-usage"
+}

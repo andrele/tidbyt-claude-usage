@@ -1,0 +1,19 @@
+# Real config — contains Tidbyt API token
+config.json
+
+# Rendered output
+*.webp
+*.gif
+/tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+
+# Editor / OS
+.DS_Store
+*.swp
+.idea/
+.vscode/
