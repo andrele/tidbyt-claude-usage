@@ -15,6 +15,7 @@ COLOR_GREEN   = "#00C853"   # < 70 % — all good
 COLOR_AMBER   = "#FFB300"   # 70–89 % — getting full
 COLOR_RED     = "#FF3D00"   # ≥ 90 % — almost out
 COLOR_DIM     = "#555555"   # labels / secondary
+COLOR_WHITE   = "#FFFFFF"   # Pure white
 COLOR_TRACK   = "#222222"   # progress bar track background
 COLOR_MASCOT  = "#D97757"   # Anthropic / Claude brand orange
 
@@ -48,7 +49,7 @@ def mascot():
         cells = []
         for i in range(len(row_str)):
             c = COLOR_MASCOT if row_str[i] == "#" else "#000000"
-            cells.append(render.Box(width = 1, height = 1, color = c))
+            cells.append(render.Box(width = 1, height = 2, color = c))
         rows.append(render.Row(children = cells))
     return render.Column(children = rows)
 
@@ -86,7 +87,7 @@ def format_countdown(resets_at_str):
     hours = total_secs // 3600
     mins  = (total_secs % 3600) // 60
     if hours > 0:
-        return "%dh%dm" % (hours, mins)
+        return "%dh%dm left" % (hours, mins)
     return "%dm" % mins
 
 # ── Main ─────────────────────────────────────────────────────────────────────
@@ -110,30 +111,21 @@ def main(config):
         cross_align = "center",
         children = [
             mascot(),
-            render.Text(content = countdown, font = "CG-pixel-3x5-mono", color = COLOR_DIM),
-        ],
-    )
-
-    # ── Row 2: hero utilisation % (large, colour-coded) ──
-    hero = render.Row(
-        expanded    = True,
-        main_align  = "center",
-        cross_align = "center",
-        children = [
-            render.Text(
-                content = "%d%%" % five_pct,
-                font    = "5x8",
-                color   = hero_color,
-            ),
+            render.Text(content = countdown, font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
         ],
     )
 
     # ── Row 3: 5-hour progress bar ──
-    bar_5h = render.Row(
+    # Layout: "5h " + full bar (44px) + " XX%"
+    primary = render.Row(
         expanded    = True,
-        main_align  = "center",
+        main_align  = "space_between",
         cross_align = "center",
-        children    = [progress_bar(five_pct, hero_color, width = BAR_WIDTH, height = BAR_HEIGHT)],
+        children = [
+            render.Text(content = "5H",               font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
+            progress_bar(five_pct, hero_color, width = 38, height = 3),
+            render.Text(content = "%d%%" % five_pct, font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
+        ],
     )
 
     # ── Row 4: 7-day secondary line ──
@@ -156,7 +148,7 @@ def main(config):
                 expanded    = True,
                 main_align  = "space_evenly",
                 cross_align = "center",
-                children    = [header, hero, bar_5h, secondary],
+                children    = [header, primary, secondary],
             ),
         ),
     )

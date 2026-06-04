@@ -5,5 +5,5 @@
   "api_token":  "YOUR_TIDBYT_API_TOKEN",
 
   "_comment_installation_id": "A stable ID keeps this image in the rotation across updates.",
-  "installation_id": "claude-usage"
+  "installation_id": "claudeusage"
 }
