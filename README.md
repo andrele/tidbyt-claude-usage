@@ -1,16 +1,16 @@
-# tidbyt-ai-usage
+# tidbyt-claude-usage
 
 A [Tidbyt](https://tidbyt.com) Pixlet app that shows your **Claude Code subscription usage** on the 64×32 LED display.
 
-**Hero metric:** 5-hour session window utilisation (%) + countdown to reset  
-**Secondary:** 7-day weekly allocation (mini bar + %)  
+**Row 1:** Claude Code pixel-art mascot (left) + countdown to 5-hour reset (right)  
+**Row 2:** 5-hour session window — "5H" label + progress bar + utilisation %  
+**Row 3:** 7-day weekly allocation — "7d" label + mini progress bar + utilisation %  
 **Color coding:** green < 70 % → amber 70–89 % → red ≥ 90 %
 
 ```
-CLAUDE              2h14m
-        88%
-[██████████████    ]
-7d [████      ]  13%
+[▐▛███▜▌]              2h14m
+5H [████████████████  ] 88%
+7d [████              ] 13%
 ```
 
 ---
