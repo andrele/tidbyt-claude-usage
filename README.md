@@ -8,7 +8,9 @@ A [Tidbyt](https://tidbyt.com) Pixlet app that shows your **Claude Code subscrip
 **Color coding:** green < 70 % → amber 70–89 % → red ≥ 90 %
 
 ```
-[▐▛███▜▌]              2h14m
+ ▐▛███▜▌
+▝▜█████▛▘          2h14m left
+  ▘▘ ▝▝
 5H [████████████████  ] 88%
 7d [████              ] 13%
 ```
