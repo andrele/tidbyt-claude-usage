@@ -47,7 +47,7 @@ Edit `config.json`:
 {
   "device_id":       "abc123xyz",
   "api_token":       "tidbyt_...",
-  "installation_id": "claude-usage"
+  "installation_id": "claudeusage"
 }
 ```
 
@@ -89,46 +89,6 @@ Or add it manually:
 Check logs:
 ```bash
 tail -f /tmp/tidbyt-claude.log
-```
-
----
-
-## Systemd timer alternative (Proxmox / Linux)
-
-More robust than cron on systemd hosts:
-
-**`/etc/systemd/system/tidbyt-claude.service`**
-```ini
-[Unit]
-Description=Push Claude usage to Tidbyt
-
-[Service]
-Type=oneshot
-User=andre
-WorkingDirectory=/home/andre/repos/tidbyt-ai-usage
-ExecStart=/usr/bin/python3 /home/andre/repos/tidbyt-ai-usage/update_tidbyt.py
-StandardOutput=journal
-StandardError=journal
-```
-
-**`/etc/systemd/system/tidbyt-claude.timer`**
-```ini
-[Unit]
-Description=Run Tidbyt Claude usage update every 5 min
-
-[Timer]
-OnBootSec=60
-OnUnitActiveSec=5min
-Persistent=true
-
-[Install]
-WantedBy=timers.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now tidbyt-claude.timer
-journalctl -fu tidbyt-claude.service
 ```
 
 ---
