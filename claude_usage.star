@@ -11,11 +11,27 @@ load("render.star", "render")
 load("time.star", "time")
 
 # ── Colors ──────────────────────────────────────────────────────────────────
-COLOR_GREEN = "#00C853"   # < 70 % — all good
-COLOR_AMBER = "#FFB300"   # 70–89 % — getting full
-COLOR_RED   = "#FF3D00"   # ≥ 90 % — almost out
-COLOR_DIM   = "#555555"   # labels / secondary
-COLOR_TRACK = "#222222"   # progress bar track background
+COLOR_GREEN   = "#00C853"   # < 70 % — all good
+COLOR_AMBER   = "#FFB300"   # 70–89 % — getting full
+COLOR_RED     = "#FF3D00"   # ≥ 90 % — almost out
+COLOR_DIM     = "#555555"   # labels / secondary
+COLOR_TRACK   = "#222222"   # progress bar track background
+COLOR_MASCOT  = "#D97757"   # Anthropic / Claude brand orange
+
+# ── Claude Code mascot (18 × 5, '#' = on, '.' = transparent) ────────────────
+# Derived from the block-char mascot shown in the Claude Code CLI:
+#   ▐▛███▜▌
+#  ▝▜█████▛▘
+#    ▘▘ ▝▝
+# Each block char encodes a 2-wide × 2-tall pixel cell; the 5 rows below
+# are the top/bottom halves of the 3 terminal lines (bottom of line 3 = all off).
+MASCOT_PIXELS = [
+    "...############...",   # top    of terminal line 1
+    "...##.######.##...",   # bottom of terminal line 1  (eye-socket gaps at col 5 & 12)
+    ".################.",   # top    of terminal line 2  (widest — shoulders)
+    "...############...",   # bottom of terminal line 2
+    "....#.#....#.#....",   # top    of terminal line 3  (feet)
+]
 
 # ── Fallback mock data for `pixlet serve` without --config ───────────────────
 DEFAULT_DATA = """{"five_hour_pct":45,"five_hour_resets_at":"2026-01-01T03:00:00Z","seven_day_pct":32,"seven_day_resets_at":"2026-01-07T00:00:00Z","extra_enabled":false,"extra_used":0,"extra_limit":0,"extra_pct":0}"""
@@ -24,6 +40,17 @@ BAR_WIDTH  = 60
 BAR_HEIGHT = 3
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
+
+def mascot():
+    """Render MASCOT_PIXELS as an 18×5 pixel-art widget."""
+    rows = []
+    for row_str in MASCOT_PIXELS:
+        cells = []
+        for i in range(len(row_str)):
+            c = COLOR_MASCOT if row_str[i] == "#" else "#000000"
+            cells.append(render.Box(width = 1, height = 1, color = c))
+        rows.append(render.Row(children = cells))
+    return render.Column(children = rows)
 
 def usage_color(pct):
     """Pick a color based on utilisation percentage."""
@@ -76,14 +103,14 @@ def main(config):
     seven_color = usage_color(seven_pct)
     countdown   = format_countdown(five_resets)
 
-    # ── Row 1: "CLAUDE" label  ·  reset countdown (right) ──
+    # ── Row 1: Claude mascot (left)  ·  reset countdown (right) ──
     header = render.Row(
         expanded    = True,
         main_align  = "space_between",
         cross_align = "center",
         children = [
-            render.Text(content = "CLAUDE",   font = "CG-pixel-3x5-mono", color = COLOR_DIM),
-            render.Text(content = countdown,  font = "CG-pixel-3x5-mono", color = COLOR_DIM),
+            mascot(),
+            render.Text(content = countdown, font = "CG-pixel-3x5-mono", color = COLOR_DIM),
         ],
     )
 
