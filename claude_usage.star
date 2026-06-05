@@ -78,17 +78,17 @@ def progress_bar(pct, color, width = BAR_WIDTH, height = BAR_HEIGHT):
 def format_countdown(resets_at_str):
     """Return a short countdown string: '2h14m', '45m', or 'now'."""
     if not resets_at_str:
-        return "?"
+        return "Not started"
     reset_time  = time.parse_time(resets_at_str)
     diff        = reset_time - time.now()
     total_secs  = int(diff.seconds)
     if total_secs <= 60:
-        return "now"
+        return "Usage reset"
     hours = total_secs // 3600
     mins  = (total_secs % 3600) // 60
     if hours > 0:
         return "%dh%dm left" % (hours, mins)
-    return "%dm" % mins
+    return "%dm left" % mins
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
