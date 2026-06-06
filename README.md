@@ -2,17 +2,17 @@
 
 A [Tidbyt](https://tidbyt.com) Pixlet app that shows your **Claude Code subscription usage** on the 64×32 LED display.
 
-**Row 1:** Claude Code pixel-art mascot (left) + countdown to 5-hour reset (right)  
-**Row 2:** 5-hour session window — "5H" label + progress bar + utilisation %  
-**Row 3:** 7-day weekly allocation — "7d" label + mini progress bar + utilisation %  
+**Row 1:** Claude Code pixel-art mascot (left) + countdown to 7-day reset (right)  
+**Row 2:** 7-day weekly allocation (hero) — "7D" label + progress bar + utilisation %  
+**Row 3:** 5-hour session window — "5h" label + mini progress bar + utilisation %  
 **Color coding:** green < 70 % → amber 70–89 % → red ≥ 90 %
 
 ```
  ▐▛███▜▌
-▝▜█████▛▘          2h14m left
+▝▜█████▛▘          5d17h left
   ▘▘ ▝▝
-5H [████████████████  ] 88%
-7d [████              ] 13%
+7D [██████            ] 31%
+5h [████████          ] 41%
 ```
 
 ---
@@ -93,6 +93,52 @@ tail -f /tmp/tidbyt-claude.log
 
 ---
 
+## Windows setup
+
+The Python wrapper is cross-platform. On Windows:
+
+### 1. Install pixlet
+
+Download the Windows build from the [pixlet releases](https://github.com/tidbyt/pixlet/releases)
+and extract `pixlet.exe` somewhere stable (e.g. inside this repo, which is gitignored).
+
+### 2. Create `config.json`
+
+Same as above, but add `pixlet_bin` pointing at the binary so a scheduled task finds it
+regardless of PATH:
+
+```json
+{
+  "device_id":       "abc123xyz",
+  "api_token":       "tidbyt_...",
+  "installation_id": "claudeusage",
+  "pixlet_bin":      "C:/Users/you/tidbyt-claude-usage/pixlet.exe"
+}
+```
+
+### 3. Push once
+
+```powershell
+python update_tidbyt.py
+```
+
+### 4. Schedule every 5 minutes (Task Scheduler)
+
+Copy `run.cmd.example` to `run.cmd` (gitignored) and adjust the Python path if needed, then:
+
+```powershell
+$action  = New-ScheduledTaskAction -Execute "C:\path\to\tidbyt-claude-usage\run.cmd"
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5)
+$settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -MultipleInstances IgnoreNew `
+              -ExecutionTimeLimit (New-TimeSpan -Minutes 4)
+Register-ScheduledTask -TaskName "TidbytClaudeUsage" -Action $action -Trigger $trigger `
+  -Settings $settings -Description "Push Claude usage to Tidbyt every 5 minutes"
+```
+
+Logs land in `%TEMP%\tidbyt-claude.log`.
+
+---
+
 ## How the data source works
 
 The script reads your OAuth access token from `~/.claude/.credentials.json`
@@ -135,6 +181,7 @@ claude_usage.star       Starlark/Pixlet app (pure presentation)
 update_tidbyt.py        Python wrapper: fetch → render → push
 config.example.json     Config template (copy to config.json)
 config.json             Your real config (gitignored)
+run.cmd.example         Windows Task Scheduler wrapper (copy to run.cmd)
 mock_usage.json         Raw API mock for offline testing
 Makefile                Convenience targets
 .gitignore

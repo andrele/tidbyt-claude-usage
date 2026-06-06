@@ -84,8 +84,11 @@ def format_countdown(resets_at_str):
     total_secs  = int(diff.seconds)
     if total_secs <= 60:
         return "Usage reset"
-    hours = total_secs // 3600
+    days  = total_secs // 86400
+    hours = (total_secs % 86400) // 3600
     mins  = (total_secs % 3600) // 60
+    if days > 0:
+        return "%dd%dh left" % (days, hours)
     if hours > 0:
         return "%dh%dm left" % (hours, mins)
     return "%dm left" % mins
@@ -96,13 +99,14 @@ def main(config):
     data_str = config.get("data") or DEFAULT_DATA
     data = json.decode(data_str)
 
-    five_pct    = int(data.get("five_hour_pct")    or 0)
-    five_resets = data.get("five_hour_resets_at")  or ""
-    seven_pct   = int(data.get("seven_day_pct")    or 0)
+    five_pct     = int(data.get("five_hour_pct")    or 0)
+    five_resets  = data.get("five_hour_resets_at")  or ""
+    seven_pct    = int(data.get("seven_day_pct")    or 0)
+    seven_resets = data.get("seven_day_resets_at")  or ""
 
     hero_color  = usage_color(five_pct)
     seven_color = usage_color(seven_pct)
-    countdown   = format_countdown(five_resets)
+    countdown   = format_countdown(seven_resets)
 
     # ── Row 1: Claude mascot (left)  ·  reset countdown (right) ──
     header = render.Row(
@@ -115,29 +119,27 @@ def main(config):
         ],
     )
 
-    # ── Row 3: 5-hour progress bar ──
-    # Layout: "5h " + full bar (44px) + " XX%"
-    primary = render.Row(
-        expanded    = True,
-        main_align  = "space_between",
-        cross_align = "center",
-        children = [
-            render.Text(content = "5H",               font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
-            progress_bar(five_pct, hero_color, width = 38, height = 3),
-            render.Text(content = "%d%%" % five_pct, font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
-        ],
-    )
-
-    # ── Row 4: 7-day secondary line ──
-    # Layout: "7d " + mini bar (44px) + " XX%"
+    # ── Row 3: 5-hour secondary line (demoted: dim, small, short bar) ──
     secondary = render.Row(
         expanded    = True,
         main_align  = "space_between",
         cross_align = "center",
         children = [
-            render.Text(content = "7d",               font = "CG-pixel-3x5-mono", color = COLOR_DIM),
-            progress_bar(seven_pct, seven_color, width = 38, height = 2),
-            render.Text(content = "%d%%" % seven_pct, font = "CG-pixel-3x5-mono", color = COLOR_DIM),
+            render.Text(content = "5h",               font = "CG-pixel-3x5-mono", color = COLOR_DIM),
+            progress_bar(five_pct, hero_color, width = 38, height = 2),
+            render.Text(content = "%d%%" % five_pct, font = "CG-pixel-3x5-mono", color = COLOR_DIM),
+        ],
+    )
+
+    # ── Row 4: 7-day hero line (highlighted: white, big font, tall bar) ──
+    primary = render.Row(
+        expanded    = True,
+        main_align  = "space_between",
+        cross_align = "center",
+        children = [
+            render.Text(content = "7D",               font = "tb-8", color = COLOR_WHITE),
+            render.Padding(pad = (0, 0, 2, 0), child = progress_bar(seven_pct, seven_color, width = 30, height = 4)),
+            render.Text(content = "%d%%" % seven_pct, font = "tb-8", color = COLOR_WHITE),
         ],
     )
 
