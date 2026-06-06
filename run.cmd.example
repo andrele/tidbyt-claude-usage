@@ -1,0 +1,10 @@
+@echo off
+REM Windows Task Scheduler wrapper: refresh Claude usage on the Tidbyt and log output.
+REM
+REM Setup:
+REM   1. Copy this file to run.cmd (gitignored).
+REM   2. If `python` is not on PATH for the scheduled task, replace it below with
+REM      an absolute path, e.g. "C:\Users\you\AppData\Local\Programs\Python\Python39\python.exe".
+REM   3. Register a task that runs every 5 minutes (see README "Windows setup").
+
+python "%~dp0update_tidbyt.py" >> "%TEMP%\tidbyt-claude.log" 2>&1

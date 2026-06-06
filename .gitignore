@@ -1,6 +1,14 @@
 # Real config — contains Tidbyt API token
 config.json
 
+# Local Task Scheduler wrapper (copy from run.cmd.example)
+run.cmd
+run-hidden.vbs
+
+# Pixlet binary (downloaded per-platform)
+pixlet
+pixlet.exe
+
 # Rendered output
 *.webp
 *.gif
