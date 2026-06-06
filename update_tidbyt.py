@@ -16,10 +16,19 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 from pathlib import Path
+
+# Windows consoles default to cp1252 and choke on the box-drawing chars used
+# in --dry-run output. Force UTF-8 so the script runs cleanly everywhere.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8")
+    except (AttributeError, ValueError):
+        pass
 
 # ── Constants ────────────────────────────────────────────────────────────────
 
@@ -116,12 +125,16 @@ def render_and_push(data: dict, cfg: dict) -> None:
     """Run `pixlet render` then `pixlet push`."""
     repo_dir  = Path(__file__).parent
     star_file = repo_dir / "claude_usage.star"
-    out_webp  = Path("/tmp/claude_usage.webp")
+    out_webp  = Path(tempfile.gettempdir()) / "claude_usage.webp"
     data_json = json.dumps(data)
+
+    # Allow overriding the pixlet binary (e.g. an absolute path on Windows where
+    # it may not be on PATH for a scheduled task). Falls back to "pixlet".
+    pixlet = cfg.get("pixlet_bin", "pixlet")
 
     # ── Render ────────────────────────────────────────────────────────────────
     render_cmd = [
-        "pixlet", "render",
+        pixlet, "render",
         str(star_file),
         f"data={data_json}",
         "-o", str(out_webp),
@@ -138,7 +151,7 @@ def render_and_push(data: dict, cfg: dict) -> None:
     installation_id = cfg.get("installation_id", "claude-usage")
 
     push_cmd = [
-        "pixlet", "push",
+        pixlet, "push",
         device_id, str(out_webp),
         "-t", api_token,
         "-i", installation_id,
