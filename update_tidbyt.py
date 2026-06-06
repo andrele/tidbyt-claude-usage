@@ -204,6 +204,8 @@ def main() -> None:
         sys.exit(1)
 
     data = build_display_data(usage)
+    # Which window the .star file highlights as the large "hero" row.
+    data["hero"] = cfg.get("hero", "5h")
     log("usage",
         f"5h={data['five_hour_pct']}%  resets@{data['five_hour_resets_at']}  "
         f"7d={data['seven_day_pct']}%  "

@@ -1,8 +1,9 @@
 """
 Applet: Claude Usage
 Summary: Claude Code session & weekly usage
-Description: Shows Claude Code subscription usage — 5-hour session window (hero)
-             and 7-day weekly allocation, with reset countdown.
+Description: Shows Claude Code subscription usage — 5-hour session window and
+             7-day weekly allocation, with a reset countdown. Either window can
+             be the highlighted "hero" row via the `hero` config key ("5h" or "7d").
 Author: Andre Le
 """
 
@@ -18,6 +19,11 @@ COLOR_DIM     = "#555555"   # labels / secondary
 COLOR_WHITE   = "#FFFFFF"   # Pure white
 COLOR_TRACK   = "#222222"   # progress bar track background
 COLOR_MASCOT  = "#D97757"   # Anthropic / Claude brand orange
+
+# Fonts: the size contrast between the hero and secondary rows is the main cue
+# for which window matters most. Hero is the larger font, secondary the small one.
+HERO_FONT = "tb-8"
+SEC_FONT  = "CG-pixel-3x5-mono"
 
 # ── Claude Code mascot (18 × 5, '#' = on, '.' = transparent) ────────────────
 # Derived from the block-char mascot shown in the Claude Code CLI:
@@ -35,7 +41,7 @@ MASCOT_PIXELS = [
 ]
 
 # ── Fallback mock data for `pixlet serve` without --config ───────────────────
-DEFAULT_DATA = """{"five_hour_pct":45,"five_hour_resets_at":"2026-01-01T03:00:00Z","seven_day_pct":32,"seven_day_resets_at":"2026-01-07T00:00:00Z","extra_enabled":false,"extra_used":0,"extra_limit":0,"extra_pct":0}"""
+DEFAULT_DATA = """{"five_hour_pct":45,"five_hour_resets_at":"2026-01-01T03:00:00Z","seven_day_pct":32,"seven_day_resets_at":"2026-01-07T00:00:00Z","extra_enabled":false,"extra_used":0,"extra_limit":0,"extra_pct":0,"hero":"5h"}"""
 
 BAR_WIDTH  = 60
 BAR_HEIGHT = 3
@@ -76,7 +82,7 @@ def progress_bar(pct, color, width = BAR_WIDTH, height = BAR_HEIGHT):
     return render.Row(children = segs)
 
 def format_countdown(resets_at_str):
-    """Return a short countdown string: '2h14m', '45m', or 'now'."""
+    """Return a short countdown string: '5d17h', '2h14m', '45m', or a status."""
     if not resets_at_str:
         return "Not started"
     reset_time  = time.parse_time(resets_at_str)
@@ -84,11 +90,44 @@ def format_countdown(resets_at_str):
     total_secs  = int(diff.seconds)
     if total_secs <= 60:
         return "Usage reset"
-    hours = total_secs // 3600
+    days  = total_secs // 86400
+    hours = (total_secs % 86400) // 3600
     mins  = (total_secs % 3600) // 60
+    if days > 0:
+        return "%dd%dh left" % (days, hours)
     if hours > 0:
         return "%dh%dm left" % (hours, mins)
     return "%dm left" % mins
+
+def usage_row(label, pct, is_hero):
+    """
+    One usage line: label + progress bar + percentage.
+
+    The hero row uses the larger font in white with a taller/wider bar; the
+    secondary row is dimmed and uses the small font with a thinner bar.
+    """
+    color = usage_color(pct)
+    if is_hero:
+        return render.Row(
+            expanded    = True,
+            main_align  = "space_between",
+            cross_align = "center",
+            children = [
+                render.Text(content = label,             font = HERO_FONT, color = COLOR_WHITE),
+                render.Padding(pad = (0, 0, 2, 0), child = progress_bar(pct, color, width = 30, height = 4)),
+                render.Text(content = "%d%%" % pct,       font = HERO_FONT, color = COLOR_WHITE),
+            ],
+        )
+    return render.Row(
+        expanded    = True,
+        main_align  = "space_between",
+        cross_align = "center",
+        children = [
+            render.Text(content = label,             font = SEC_FONT, color = COLOR_DIM),
+            progress_bar(pct, color, width = 38, height = 2),
+            render.Text(content = "%d%%" % pct,       font = SEC_FONT, color = COLOR_DIM),
+        ],
+    )
 
 # ── Main ─────────────────────────────────────────────────────────────────────
 
@@ -96,13 +135,21 @@ def main(config):
     data_str = config.get("data") or DEFAULT_DATA
     data = json.decode(data_str)
 
-    five_pct    = int(data.get("five_hour_pct")    or 0)
-    five_resets = data.get("five_hour_resets_at")  or ""
-    seven_pct   = int(data.get("seven_day_pct")    or 0)
+    five_pct     = int(data.get("five_hour_pct")    or 0)
+    five_resets  = data.get("five_hour_resets_at")  or ""
+    seven_pct    = int(data.get("seven_day_pct")    or 0)
+    seven_resets = data.get("seven_day_resets_at")  or ""
+    hero         = data.get("hero")                 or "5h"
 
-    hero_color  = usage_color(five_pct)
-    seven_color = usage_color(seven_pct)
-    countdown   = format_countdown(five_resets)
+    # The countdown tracks whichever window is the hero.
+    if hero == "7d":
+        countdown = format_countdown(seven_resets)
+        hero_row  = usage_row("7D", seven_pct, True)
+        sec_row   = usage_row("5h", five_pct,  False)
+    else:
+        countdown = format_countdown(five_resets)
+        hero_row  = usage_row("5H", five_pct,  True)
+        sec_row   = usage_row("7d", seven_pct, False)
 
     # ── Row 1: Claude mascot (left)  ·  reset countdown (right) ──
     header = render.Row(
@@ -111,33 +158,7 @@ def main(config):
         cross_align = "center",
         children = [
             mascot(),
-            render.Text(content = countdown, font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
-        ],
-    )
-
-    # ── Row 3: 5-hour progress bar ──
-    # Layout: "5h " + full bar (44px) + " XX%"
-    primary = render.Row(
-        expanded    = True,
-        main_align  = "space_between",
-        cross_align = "center",
-        children = [
-            render.Text(content = "5H",               font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
-            progress_bar(five_pct, hero_color, width = 38, height = 3),
-            render.Text(content = "%d%%" % five_pct, font = "CG-pixel-3x5-mono", color = COLOR_WHITE),
-        ],
-    )
-
-    # ── Row 4: 7-day secondary line ──
-    # Layout: "7d " + mini bar (44px) + " XX%"
-    secondary = render.Row(
-        expanded    = True,
-        main_align  = "space_between",
-        cross_align = "center",
-        children = [
-            render.Text(content = "7d",               font = "CG-pixel-3x5-mono", color = COLOR_DIM),
-            progress_bar(seven_pct, seven_color, width = 38, height = 2),
-            render.Text(content = "%d%%" % seven_pct, font = "CG-pixel-3x5-mono", color = COLOR_DIM),
+            render.Text(content = countdown, font = SEC_FONT, color = COLOR_WHITE),
         ],
     )
 
@@ -148,7 +169,7 @@ def main(config):
                 expanded    = True,
                 main_align  = "space_evenly",
                 cross_align = "center",
-                children    = [header, primary, secondary],
+                children    = [header, hero_row, sec_row],
             ),
         ),
     )
