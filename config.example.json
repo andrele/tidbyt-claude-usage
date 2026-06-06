@@ -8,5 +8,8 @@
   "installation_id": "claudeusage",
 
   "_comment_pixlet_bin": "Optional. Path to the pixlet binary if it isn't on PATH (e.g. on Windows). Defaults to 'pixlet'.",
-  "pixlet_bin": "pixlet"
+  "pixlet_bin": "pixlet",
+
+  "_comment_hero": "Which usage window to highlight as the large 'hero' row: \"5h\" (default) or \"7d\".",
+  "hero": "5h"
 }

@@ -2,10 +2,14 @@
 
 A [Tidbyt](https://tidbyt.com) Pixlet app that shows your **Claude Code subscription usage** on the 64×32 LED display.
 
-**Row 1:** Claude Code pixel-art mascot (left) + countdown to 5-hour reset (right)  
-**Row 2:** 5-hour session window — "5H" label + progress bar + utilisation %  
-**Row 3:** 7-day weekly allocation — "7d" label + mini progress bar + utilisation %  
+**Row 1:** Claude Code pixel-art mascot (left) + reset countdown for the hero window (right)  
+**Row 2:** "Hero" usage window — large label + progress bar + utilisation %  
+**Row 3:** Secondary usage window — dimmed, small label + mini bar + utilisation %  
 **Color coding:** green < 70 % → amber 70–89 % → red ≥ 90 %
+
+By default the **5-hour session** window is the hero and the **7-day weekly**
+allocation is the dimmed secondary line. Set `"hero": "7d"` in `config.json` to
+swap them (see [Choosing the hero row](#choosing-the-hero-row)).
 
 ```
  ▐▛███▜▌
@@ -136,6 +140,23 @@ Register-ScheduledTask -TaskName "TidbytClaudeUsage" -Action $action -Trigger $t
 ```
 
 Logs land in `%TEMP%\tidbyt-claude.log`.
+
+---
+
+## Choosing the hero row
+
+The display highlights one usage window as the large **hero** row (white, bigger
+font, taller bar) and dims the other to a small secondary line. The size/contrast
+difference is the cue for which one to glance at. Pick the hero with the `hero`
+key in `config.json`:
+
+```json
+{ "hero": "5h" }   // default — 5-hour session window is the hero
+{ "hero": "7d" }   // 7-day weekly allocation is the hero
+```
+
+The reset countdown in the header automatically tracks whichever window is the
+hero (e.g. `2h14m left` for `5h`, `5d17h left` for `7d`).
 
 ---
 
