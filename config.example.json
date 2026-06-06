@@ -11,5 +11,11 @@
   "pixlet_bin": "pixlet",
 
   "_comment_hero": "Which usage window to highlight as the large 'hero' row: \"5h\" (default) or \"7d\".",
-  "hero": "5h"
+  "hero": "5h",
+
+  "_comment_log_db": "Optional. Path to a SQLite database for logging usage over time. Relative paths are resolved from the repo directory. Leave unset to disable logging.",
+  "log_db": "usage.db",
+
+  "_comment_underutil_rate_per_hr": "Optional. Rate-of-change threshold (%/hr) below which a window is considered flat/underutilized. Default: 1.0.",
+  "underutil_rate_per_hr": 1.0
 }

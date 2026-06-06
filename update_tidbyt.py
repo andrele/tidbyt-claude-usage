@@ -14,6 +14,7 @@ The script reads:
 
 import json
 import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -121,6 +122,48 @@ def build_display_data(usage: dict) -> dict:
     }
 
 
+_USAGE_DDL = """
+CREATE TABLE IF NOT EXISTS usage (
+    ts                  TEXT PRIMARY KEY,
+    five_hour_pct       REAL,
+    five_hour_resets_at TEXT,
+    seven_day_pct       REAL,
+    seven_day_resets_at TEXT,
+    extra_used          REAL,
+    extra_limit         REAL
+)
+"""
+
+def log_usage(usage: dict, data: dict, db_path: Path) -> None:
+    """Append one row to the SQLite time-series DB.  Never raises — caller wraps in try/except."""
+    five_hour = usage.get("five_hour") or {}
+    seven_day = usage.get("seven_day") or {}
+    extra     = usage.get("extra_usage") or {}
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    row = (
+        ts,
+        five_hour.get("utilization"),   # raw float, better resolution than display int
+        data.get("five_hour_resets_at"),
+        seven_day.get("utilization"),
+        data.get("seven_day_resets_at"),
+        extra.get("used_credits"),
+        extra.get("monthly_limit"),
+    )
+    con = sqlite3.connect(db_path)
+    try:
+        con.execute(_USAGE_DDL)
+        con.execute(
+            "INSERT OR IGNORE INTO usage "
+            "(ts, five_hour_pct, five_hour_resets_at, seven_day_pct, seven_day_resets_at, extra_used, extra_limit) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            row,
+        )
+        con.commit()
+    finally:
+        con.close()
+
+
 def render_and_push(data: dict, cfg: dict) -> None:
     """Run `pixlet render` then `pixlet push`."""
     repo_dir  = Path(__file__).parent
@@ -219,6 +262,18 @@ def main() -> None:
     data = build_display_data(usage)
     # Which window the .star file highlights as the large "hero" row.
     data["hero"] = cfg.get("hero", "5h")
+
+    # ── Optional time-series logging ─────────────────────────────────────────
+    log_db_val = cfg.get("log_db")
+    if log_db_val:
+        db_path = Path(log_db_val)
+        if not db_path.is_absolute():
+            db_path = Path(__file__).parent / db_path
+        try:
+            log_usage(usage, data, db_path)
+            log("db", f"logged to {db_path}")
+        except Exception as exc:
+            log("WARN", f"usage logging failed (continuing): {exc}")
     log("usage",
         f"5h={data['five_hour_pct']}%  resets@{data['five_hour_resets_at']}  "
         f"7d={data['seven_day_pct']}%  "

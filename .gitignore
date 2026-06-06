@@ -1,6 +1,13 @@
 # Real config — contains Tidbyt API token
 config.json
 
+# Usage time-series database (local analytics — keep private)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
 # Local Task Scheduler wrapper (copy from run.cmd.example)
 run.cmd
 run-hidden.vbs

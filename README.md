@@ -160,6 +160,69 @@ hero (e.g. `2h14m left` for `5h`, `5d17h left` for `7d`).
 
 ---
 
+## Usage logging & underutilisation analysis
+
+The updater can log every 5-minute reading to a local SQLite database so you can
+analyse how much of your 5-hour and 7-day allowances goes unused.
+
+### Enable logging
+
+Add `log_db` to `config.json`:
+
+```json
+{
+  "log_db": "usage.db",
+  "underutil_rate_per_hr": 1.0
+}
+```
+
+- **`log_db`** — path to the SQLite file (relative paths resolve from the repo directory). The table is created automatically on first run. The file is gitignored.
+- **`underutil_rate_per_hr`** *(optional, default `1.0`)* — rate of change threshold in %/hr below which a window is considered "flat" (underutilised). Tune this to your usage pattern.
+
+### Human-readable report
+
+```bash
+python3 usage_report.py
+```
+
+Prints:
+
+- **Current window status** — utilisation %, rate of change (%/hr), headroom, time to reset, and whether the window is currently flat.
+- **Closed 5-hour windows (last 24 h)** — final utilisation reached before each reset, so you can see how much was wasted per session.
+- **Closed 7-day windows** — same, for weekly totals.
+- **Daily breakdown** — max utilisation and longest idle streak (consecutive flat readings) per calendar day, to surface *when* dead time clusters.
+
+### Machine-readable status (for automations)
+
+```bash
+python3 usage_report.py --status
+echo $?   # 0 = currently utilising, 1 = underutilised
+```
+
+Emits a JSON object and sets exit code `1` when the window is flat with headroom:
+
+```json
+{
+  "underutilized": true,
+  "window_key": "5h",
+  "five_hour":  {"pct": 0.0,  "rate_per_hr": 0.0, "headroom": 100.0, "minutes_to_reset": 142, "flat": true},
+  "seven_day":  {"pct": 32.0, "rate_per_hr": 0.1, "headroom": 68.0,  "minutes_to_reset": 4100, "flat": true}
+}
+```
+
+Key off the 7-day window instead: `python3 usage_report.py --status --window 7d`
+
+**Exit-code contract for cron automations:**
+
+```bash
+# Example: trigger a queued-work script whenever the 5h session is idle
+*/5 * * * * python3 /path/to/usage_report.py --status || /path/to/kick_off_work.sh
+```
+
+A window is underutilised when **rate of change ≈ 0** (below `underutil_rate_per_hr`) **while the window still has headroom and time remaining**. The waste crystallises at each reset: whatever utilisation was reached when the window closed is what was actually used — the rest is gone.
+
+---
+
 ## How the data source works
 
 The script reads your OAuth access token from `~/.claude/.credentials.json`
@@ -199,7 +262,8 @@ to trigger a fresh authentication.
 
 ```
 claude_usage.star       Starlark/Pixlet app (pure presentation)
-update_tidbyt.py        Python wrapper: fetch → render → push
+update_tidbyt.py        Python wrapper: fetch → render → push (+ optional DB logging)
+usage_report.py         Underutilisation analysis: human report + --status for automations
 config.example.json     Config template (copy to config.json)
 config.json             Your real config (gitignored)
 run.cmd.example         Windows Task Scheduler wrapper (copy to run.cmd)

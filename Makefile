@@ -49,4 +49,18 @@ install-cron:
 	  (crontab -l 2>/dev/null; echo "*/5 * * * * cd $(REPO_DIR) && /usr/bin/python3 update_tidbyt.py >> /tmp/tidbyt-claude.log 2>&1") | crontab -
 	@echo "Cron job installed."
 
-.PHONY: serve render render-mock dry-run print-data push show-cron install-cron
+# ── Usage analytics ───────────────────────────────────────────────────────────
+
+## Print human-readable underutilisation report (requires log_db in config.json)
+report:
+	python3 $(REPO_DIR)usage_report.py
+
+## Machine-readable underutilisation status JSON (exit 1 = underutilised)
+status:
+	python3 $(REPO_DIR)usage_report.py --status
+
+## Machine-readable status keyed off the 7-day window
+status-7d:
+	python3 $(REPO_DIR)usage_report.py --status --window 7d
+
+.PHONY: serve render render-mock dry-run print-data push show-cron install-cron report status status-7d
