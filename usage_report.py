@@ -124,6 +124,11 @@ def latest_window_status(con: sqlite3.Connection, window: str, threshold: float)
     Summarise the current (latest) window instance for the given window.
     Returns a dict with: pct, resets_at, rate_per_hr, headroom,
                          minutes_to_reset, flat (bool), underutilized (bool).
+
+    When resets_at is blank the API hasn't started the next window yet (pct=0,
+    session not kicked off).  We still flag flat if the last N readings have
+    all been at 0% — the session is idle regardless of whether a reset time is
+    known.
     """
     rows = query_roc(con, window)
     if not rows:
@@ -136,19 +141,32 @@ def latest_window_status(con: sqlite3.Connection, window: str, threshold: float)
     headroom  = max(0.0, 100.0 - pct)
     mins_left = _minutes_to_reset(resets_at)
 
-    # Window is "flat" when rate is below threshold, there's headroom, and the
-    # window hasn't closed yet (mins_left > 0 means the reset is still ahead).
-    flat          = (rate < threshold) and (headroom > 0.0) and (mins_left > 0)
+    # When resets_at is blank the window hasn't started; count how many
+    # consecutive trailing rows share the same blank resets_at at 0% pct.
+    idle_mins_no_reset = 0.0
+    if not resets_at:
+        for r in reversed(rows):
+            if r["resets_at"]:
+                break
+            idle_mins_no_reset += 5   # each row ≈ 5-min cron interval
+
+    # Flat = rate below threshold AND headroom remains AND either:
+    #   a) window is open with time left, OR
+    #   b) resets_at is blank but we've been idle for > one cron tick
+    window_open  = mins_left > 0
+    idle_no_reset = (not resets_at) and (idle_mins_no_reset > 5) and (headroom > 0.0)
+    flat          = (rate < threshold) and (headroom > 0.0) and (window_open or idle_no_reset)
     underutilized = flat
 
     return {
-        "pct":               round(pct, 1),
-        "rate_per_hr":       round(rate, 2),
-        "headroom":          round(headroom, 1),
-        "resets_at":         resets_at,
-        "minutes_to_reset":  round(mins_left, 0),
-        "flat":              flat,
-        "underutilized":     underutilized,
+        "pct":                  round(pct, 1),
+        "rate_per_hr":          round(rate, 2),
+        "headroom":             round(headroom, 1),
+        "resets_at":            resets_at,
+        "minutes_to_reset":     round(mins_left, 0),
+        "idle_mins_no_reset":   round(idle_mins_no_reset, 0),
+        "flat":                 flat,
+        "underutilized":        underutilized,
     }
 
 
@@ -163,12 +181,18 @@ def closed_window_waste(con: sqlite3.Connection, window: str) -> list[dict]:
     represents the final utilisation for that instance.
     """
     col = "five_hour" if window == "5h" else "seven_day"
+    # Round resets_at to the nearest minute before grouping — the API jitters
+    # ±1s on the same logical window boundary, which can straddle a minute
+    # boundary (e.g. 06:39:59Z and 06:40:00Z are the same window).
     rows = con.execute(f"""
-        SELECT {col}_resets_at AS resets_at, MAX(ts) AS last_ts,
-               MAX({col}_pct)  AS final_pct
+        SELECT round(julianday({col}_resets_at) * 1440) / 1440 AS resets_key,
+               MIN({col}_resets_at) AS resets_at,
+               MAX(ts) AS last_ts,
+               MAX({col}_pct) AS final_pct
         FROM usage
-        GROUP BY {col}_resets_at
-        ORDER BY {col}_resets_at
+        WHERE {col}_resets_at IS NOT NULL AND {col}_resets_at != ''
+        GROUP BY round(julianday({col}_resets_at) * 1440)
+        ORDER BY resets_key
     """).fetchall()
 
     now_str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
