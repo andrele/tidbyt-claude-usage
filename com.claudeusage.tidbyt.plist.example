@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  macOS launchd LaunchAgent template for tidbyt-claude-usage.
+
+  Don't edit this file's __PLACEHOLDERS__ by hand: `make install-launchd`
+  (scripts/macos-launchd.sh) substitutes __PYTHON__ and __REPO_DIR__ and writes
+  the result to ~/Library/LaunchAgents/com.claudeusage.tidbyt.plist.
+
+  A LaunchAgent (not cron) is used on macOS because it runs in the user's GUI
+  login session, where reading the Claude token from the Keychain works
+  reliably — cron jobs on macOS often cannot access the login Keychain.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.claudeusage.tidbyt</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__PYTHON__</string>
+        <string>__REPO_DIR__/update_tidbyt.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>__REPO_DIR__</string>
+
+    <!-- Push usage to the device every 5 minutes (300s). -->
+    <key>StartInterval</key>
+    <integer>300</integer>
+
+    <!-- Also run once immediately when the agent is loaded / on login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/tidbyt-claude.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tidbyt-claude.log</string>
+</dict>
+</plist>

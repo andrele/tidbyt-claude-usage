@@ -2,6 +2,8 @@
 
 A [Tidbyt](https://tidbyt.com) Pixlet app that shows your **Claude Code subscription usage** on the 64×32 LED display.
 
+> **macOS fork** of [`andrele/tidbyt-claude-usage`](https://github.com/andrele/tidbyt-claude-usage). It reads the Claude token from the macOS **Keychain**, auto-detects the Homebrew `pixlet`, and ships a **launchd** agent for the 5-minute refresh. The original Linux/Windows code paths are preserved.
+
 **Row 1:** Claude Code pixel-art mascot (left) + reset countdown for the hero window (right)  
 **Row 2:** "Hero" usage window — large label + progress bar + utilisation %  
 **Row 3:** Secondary usage window — dimmed, small label + mini bar + utilisation %  
@@ -25,7 +27,7 @@ swap them (see [Choosing the hero row](#choosing-the-hero-row)).
 
 | Tool | Notes |
 |------|-------|
-| `pixlet` | `/usr/local/bin/pixlet` — already installed |
+| `pixlet` | `brew install tidbyt/tidbyt/pixlet` — auto-detected on PATH (macOS) |
 | `python3` | stdlib only, no pip deps |
 | Claude Code | Running (keeps the OAuth token fresh) |
 | Tidbyt device | Physical device + API token |
@@ -79,7 +81,9 @@ make render      # render to /tmp/claude_usage.webp with live data
 make push
 ```
 
-### 6. Install the cron job (every 5 minutes)
+### 6. Schedule the updates — Linux: cron (every 5 minutes)
+
+> **On macOS, skip this** and use the [launchd agent](#macos-schedule-with-launchd-recommended) below — cron on macOS often can't read the login Keychain that holds your Claude token.
 
 ```bash
 make install-cron   # shows the line and prompts before modifying crontab
@@ -94,6 +98,24 @@ Check logs:
 ```bash
 tail -f /tmp/tidbyt-claude.log
 ```
+
+---
+
+## macOS: schedule with `launchd` (recommended)
+
+On macOS, use a launchd LaunchAgent instead of cron. It runs in your GUI login
+session, so it can read the Claude token from the **Keychain** reliably (cron on
+macOS frequently cannot) and it restarts on reboot.
+
+```bash
+make install-launchd     # render + push now, then every 5 minutes
+make status-launchd      # check it's loaded
+make uninstall-launchd   # stop and remove
+```
+
+Logs land in `/tmp/tidbyt-claude.log`. The first run may pop a Keychain prompt to
+allow `python3` to read `Claude Code-credentials` — click **Always Allow** so
+unattended runs succeed.
 
 ---
 
@@ -162,8 +184,9 @@ hero (e.g. `2h14m left` for `5h`, `5d17h left` for `7d`).
 
 ## How the data source works
 
-The script reads your OAuth access token from `~/.claude/.credentials.json`
-(maintained by the Claude Code daemon) and calls an undocumented Anthropic endpoint:
+The script reads your OAuth access token — on **macOS** from the login Keychain
+item `Claude Code-credentials`, otherwise from `~/.claude/.credentials.json`
+(both kept fresh by the Claude Code daemon) — and calls an undocumented Anthropic endpoint:
 
 ```
 GET https://api.anthropic.com/api/oauth/usage
@@ -203,6 +226,8 @@ update_tidbyt.py        Python wrapper: fetch → render → push
 config.example.json     Config template (copy to config.json)
 config.json             Your real config (gitignored)
 run.cmd.example         Windows Task Scheduler wrapper (copy to run.cmd)
+com.claudeusage.tidbyt.plist.example   macOS launchd agent template
+scripts/macos-launchd.sh               macOS launchd install/uninstall/status helper
 mock_usage.json         Raw API mock for offline testing
 Makefile                Convenience targets
 .gitignore

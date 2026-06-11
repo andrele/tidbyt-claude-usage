@@ -14,6 +14,7 @@ The script reads:
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -48,10 +49,41 @@ def load_config(config_path: Path) -> dict:
         return json.load(f)
 
 
+# On macOS, Claude Code stores credentials in the login Keychain rather than in
+# ~/.claude/.credentials.json. This is the Keychain item (service) name it uses.
+KEYCHAIN_SERVICE = "Claude Code-credentials"
+
+
+def _read_keychain_credentials():
+    """Return the raw credentials JSON string from the macOS Keychain, or None.
+
+    The Claude Code daemon keeps this item refreshed, so reading it on each run
+    always yields a fresh access token — same contract as the file on Linux.
+    """
+    try:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-w"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except Exception:
+        return None
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return result.stdout.strip()
+
+
 def load_credentials() -> dict:
-    """Read the OAuth token written by the Claude Code daemon."""
-    with open(CREDENTIALS_PATH) as f:
-        creds = json.load(f)
+    """Read the OAuth token kept fresh by the Claude Code daemon.
+
+    macOS keeps the token in the login Keychain; Linux/Windows write
+    ~/.claude/.credentials.json. Prefer the Keychain on macOS, then fall back to
+    the file so this stays cross-platform.
+    """
+    raw = _read_keychain_credentials() if sys.platform == "darwin" else None
+    if raw is None:
+        with open(CREDENTIALS_PATH) as f:
+            raw = f.read()
+    creds = json.loads(raw)
     oauth = creds.get("claudeAiOauth", creds)
     return {
         "access_token": oauth["accessToken"],
@@ -121,6 +153,25 @@ def build_display_data(usage: dict) -> dict:
     }
 
 
+def resolve_pixlet(cfg: dict) -> str:
+    """Locate the pixlet binary.
+
+    Order: explicit config (pixlet_bin), then PATH, then common Homebrew install
+    paths. launchd and cron run with a minimal PATH that omits /opt/homebrew/bin,
+    so an unqualified "pixlet" fails there — fall back to known locations.
+    """
+    configured = cfg.get("pixlet_bin")
+    if configured and configured != "pixlet":
+        return configured
+    on_path = shutil.which("pixlet")
+    if on_path:
+        return on_path
+    for candidate in ("/opt/homebrew/bin/pixlet", "/usr/local/bin/pixlet"):
+        if os.path.exists(candidate):
+            return candidate
+    return configured or "pixlet"
+
+
 def render_and_push(data: dict, cfg: dict) -> None:
     """Run `pixlet render` then `pixlet push`."""
     repo_dir  = Path(__file__).parent
@@ -128,9 +179,9 @@ def render_and_push(data: dict, cfg: dict) -> None:
     out_webp  = Path(tempfile.gettempdir()) / "claude_usage.webp"
     data_json = json.dumps(data)
 
-    # Allow overriding the pixlet binary (e.g. an absolute path on Windows where
-    # it may not be on PATH for a scheduled task). Falls back to "pixlet".
-    pixlet = cfg.get("pixlet_bin", "pixlet")
+    # Resolve the pixlet binary: config override → PATH → Homebrew fallback. This
+    # matters under launchd/cron, whose minimal PATH omits /opt/homebrew/bin.
+    pixlet = resolve_pixlet(cfg)
 
     # ── Render ────────────────────────────────────────────────────────────────
     render_cmd = [
