@@ -49,4 +49,18 @@ install-cron:
 	  (crontab -l 2>/dev/null; echo "*/5 * * * * cd $(REPO_DIR) && /usr/bin/python3 update_tidbyt.py >> /tmp/tidbyt-claude.log 2>&1") | crontab -
 	@echo "Cron job installed."
 
-.PHONY: serve render render-mock dry-run print-data push show-cron install-cron
+# ── macOS launchd agent ───────────────────────────────────────────────────────
+
+## (macOS) Install a launchd agent that pushes every 5 min (recommended over cron)
+install-launchd:
+	@bash $(REPO_DIR)scripts/macos-launchd.sh install
+
+## (macOS) Stop and remove the launchd agent
+uninstall-launchd:
+	@bash $(REPO_DIR)scripts/macos-launchd.sh uninstall
+
+## (macOS) Show launchd agent status
+status-launchd:
+	@bash $(REPO_DIR)scripts/macos-launchd.sh status
+
+.PHONY: serve render render-mock dry-run print-data push show-cron install-cron install-launchd uninstall-launchd status-launchd
