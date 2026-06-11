@@ -92,11 +92,31 @@ def load_credentials() -> dict:
     }
 
 
+def _resolve_claude() -> str:
+    """Locate the claude binary: PATH, then common install locations.
+
+    launchd/cron run with a minimal PATH that omits ~/.local/bin and
+    /opt/homebrew/bin, so an unqualified "claude" fails there and the version
+    falls back to a stale default. Resolve it the same way as pixlet.
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+    for candidate in (
+        str(Path.home() / ".local" / "bin" / "claude"),
+        "/opt/homebrew/bin/claude",
+        "/usr/local/bin/claude",
+    ):
+        if os.path.exists(candidate):
+            return candidate
+    return "claude"
+
+
 def claude_version() -> str:
     """Return the installed Claude Code version string (e.g. '2.1.161')."""
     try:
         result = subprocess.run(
-            ["claude", "--version"],
+            [_resolve_claude(), "--version"],
             capture_output=True, text=True, timeout=5,
         )
         # "2.1.161 (Claude Code)" → "2.1.161"
